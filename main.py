@@ -14,7 +14,9 @@ MESSAGE = (
 # Gate mirror: the sealed scorer accepts UTF-8 text of 1-159 characters,
 # not only white space, on a single line. Fail loudly here, never ship
 # an entry the gate would refuse.
-assert 1 <= len(MESSAGE) <= 159, "message must be 1-159 characters"
+MAX_CHARS = 159
+
+assert 1 <= len(MESSAGE) <= MAX_CHARS, "message must be 1-159 characters"
 assert "\n" not in MESSAGE, "message must be one line"
 assert MESSAGE.strip() == MESSAGE, "message must not start or end with whitespace"
 
@@ -22,8 +24,16 @@ assert MESSAGE.strip() == MESSAGE, "message must not start or end with whitespac
 def main():
     out = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     os.makedirs(out, exist_ok=True)
-    with open(os.path.join(out, "entry.txt"), "w", encoding="utf-8") as f:
+    path = os.path.join(out, "entry.txt")
+    with open(path, "w", encoding="utf-8") as f:
         f.write(MESSAGE)
+    # Verify what actually landed on disk: read it back and re-check the
+    # gate, so a truncated or mangled write fails loudly instead of
+    # shipping an entry the sealed scorer would refuse.
+    with open(path, encoding="utf-8") as f:
+        written = f.read()
+    assert written == MESSAGE, "entry.txt on disk differs from MESSAGE"
+    assert 1 <= len(written) <= MAX_CHARS, "written entry fails the gate"
 
 
 if __name__ == "__main__":
